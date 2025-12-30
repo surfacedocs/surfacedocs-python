@@ -21,6 +21,11 @@ class TestPackageImports:
         from surfacedocs import SurfaceDocs
         assert SurfaceDocs is not None
 
+    def test_import_save_result(self):
+        """SaveResult should be importable."""
+        from surfacedocs import SaveResult
+        assert SaveResult is not None
+
     def test_import_surfacedocs_error(self):
         """SurfaceDocsError should be importable."""
         from surfacedocs import SurfaceDocsError
@@ -97,6 +102,11 @@ class TestAllExports:
         import surfacedocs
         assert "SurfaceDocs" in surfacedocs.__all__
 
+    def test_all_contains_save_result(self):
+        """__all__ should include SaveResult."""
+        import surfacedocs
+        assert "SaveResult" in surfacedocs.__all__
+
     def test_all_contains_exceptions(self):
         """__all__ should include all exceptions."""
         import surfacedocs
@@ -117,9 +127,9 @@ class TestAllExports:
             assert hasattr(surfacedocs, name), f"{name} not accessible"
 
     def test_all_has_expected_count(self):
-        """__all__ should have exactly 8 exports."""
+        """__all__ should have exactly 9 exports."""
         import surfacedocs
-        assert len(surfacedocs.__all__) == 8
+        assert len(surfacedocs.__all__) == 9
 
 
 class TestModuleDocstring:

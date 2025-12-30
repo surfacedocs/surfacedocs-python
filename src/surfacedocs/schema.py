@@ -3,6 +3,7 @@
 This schema is designed to work with:
 - OpenAI's response_format (json_schema)
 - Anthropic's tools (input_schema)
+- Google Gemini's response_schema
 
 Block Type Metadata:
     heading     - level: int (1-6)

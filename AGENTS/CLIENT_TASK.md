@@ -1,5 +1,58 @@
-"""HTTP client for saving documents."""
+# Task: HTTP Client Implementation
 
+## Status: COMPLETE
+
+## Objective
+
+Implement the `SurfaceDocs` client class that saves documents to the ingress API.
+
+## Context
+
+- SETUP_TASK, SCHEMA_TASK, PROMPT_TASK complete
+- Client uses httpx for HTTP requests
+- Must call `POST /v1/documents` on ingress-api
+- Reference: `plans/python-sdk-spec.md`, `services/ingress-api/src/main.py`
+
+---
+
+## Deliverable
+
+Update `src/surfacedocs/client.py` with the complete `SurfaceDocs` class.
+
+---
+
+## API Endpoint
+
+```
+POST /v1/documents
+Host: ingress.surfacedocs.dev (prod) or ingress.dev.surfacedocs.dev (dev)
+Authorization: Bearer <api_key>
+Content-Type: application/json
+
+{
+  "title": "Document title",
+  "folder_id": "optional_folder_id",
+  "content_type": "markdown",
+  "metadata": {"source": "agent-name"},
+  "blocks": [...]
+}
+
+Response 201:
+{
+  "id": "doc_abc123",
+  "url": "https://app.surfacedocs.dev/d/doc_abc123",
+  "folder_id": "folder_xyz",
+  "title": "Document title",
+  "block_count": 5,
+  "created_at": "2024-01-01T00:00:00Z"
+}
+```
+
+---
+
+## Implementation
+
+```python
 from __future__ import annotations
 
 import json
@@ -20,7 +73,6 @@ from surfacedocs.exceptions import (
 @dataclass
 class SaveResult:
     """Result from saving a document."""
-
     id: str
     url: str
     folder_id: str
@@ -47,9 +99,7 @@ class SurfaceDocs:
         """
         self.api_key = api_key or os.environ.get("SURFACEDOCS_API_KEY")
         if not self.api_key:
-            raise AuthenticationError(
-                "API key required. Pass api_key or set SURFACEDOCS_API_KEY."
-            )
+            raise AuthenticationError("API key required. Pass api_key or set SURFACEDOCS_API_KEY.")
 
         if base_url:
             self.base_url = base_url.rstrip("/")
@@ -158,8 +208,7 @@ class SurfaceDocs:
         # Error handling
         try:
             error_data = response.json()
-            error_obj = error_data.get("error", {})
-            detail = error_obj.get("message", str(error_data))
+            detail = error_data.get("detail", str(error_data))
         except Exception:
             detail = response.text or f"HTTP {response.status_code}"
 
@@ -183,3 +232,46 @@ class SurfaceDocs:
 
     def __exit__(self, *args: Any) -> None:
         self.close()
+```
+
+---
+
+## Verification
+
+```python
+from surfacedocs import SurfaceDocs, SurfaceDocsError
+
+# Should raise without API key
+try:
+    client = SurfaceDocs()
+except SurfaceDocsError:
+    print("Correctly raised error without API key")
+
+# Should detect dev URL
+import os
+os.environ["SURFACEDOCS_API_KEY"] = "sd_test_fake"
+client = SurfaceDocs()
+assert client.base_url == "https://ingress.dev.surfacedocs.dev"
+
+# Should detect prod URL
+client = SurfaceDocs(api_key="sd_live_fake")
+assert client.base_url == "https://ingress.surfacedocs.dev"
+
+# Context manager should work
+with SurfaceDocs(api_key="sd_test_fake") as client:
+    assert client.api_key == "sd_test_fake"
+```
+
+---
+
+## Definition of Done
+
+- [x] `SurfaceDocs` class implemented in `client.py`
+- [x] `SaveResult` dataclass implemented
+- [x] `save()` method accepts string or dict
+- [x] `save_raw()` method accepts explicit params
+- [x] API key from constructor or env var
+- [x] Base URL auto-detected from key prefix
+- [x] Error responses mapped to exception types
+- [x] Context manager support (`with` statement)
+- [x] Import works: `from surfacedocs import SurfaceDocs`

@@ -2,7 +2,7 @@
 
 from surfacedocs.schema import DOCUMENT_SCHEMA
 from surfacedocs.prompt import SYSTEM_PROMPT
-from surfacedocs.client import SurfaceDocs
+from surfacedocs.client import SaveResult, SurfaceDocs
 from surfacedocs.exceptions import (
     SurfaceDocsError,
     AuthenticationError,
@@ -15,6 +15,7 @@ __version__ = "0.1.0"
 __all__ = [
     "DOCUMENT_SCHEMA",
     "SYSTEM_PROMPT",
+    "SaveResult",
     "SurfaceDocs",
     "SurfaceDocsError",
     "AuthenticationError",

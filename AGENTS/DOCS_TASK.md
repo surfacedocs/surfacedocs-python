@@ -1,3 +1,30 @@
+# Task: Documentation
+
+## Status: COMPLETE
+
+## Objective
+
+Write user-facing documentation: README with examples, docstrings, and LICENSE.
+
+## Context
+
+- All code and tests complete
+- README is primary documentation (shown on PyPI)
+- Reference: `plans/python-sdk-spec.md`
+
+---
+
+## Deliverables
+
+1. `README.md` - Full documentation with examples
+2. Docstrings on all public APIs
+3. `LICENSE` - MIT license (verify exists)
+
+---
+
+## README.md
+
+```markdown
 # SurfaceDocs Python SDK
 
 Save LLM-generated documents to [SurfaceDocs](https://surfacedocs.dev).
@@ -112,6 +139,35 @@ result.folder_id # "folder_xyz"
 
 JSON schema dict for LLM structured output. Pass directly to your LLM provider.
 
+```python
+from surfacedocs import DOCUMENT_SCHEMA
+
+# OpenAI
+response = openai.chat.completions.create(
+    model="gpt-4o",
+    messages=[...],
+    response_format={
+        "type": "json_schema",
+        "json_schema": {
+            "name": "surfacedocs_document",
+            "schema": DOCUMENT_SCHEMA,
+        },
+    },
+)
+
+# Anthropic
+response = anthropic.messages.create(
+    model="claude-sonnet-4-20250514",
+    messages=[...],
+    tools=[{
+        "name": "create_document",
+        "description": "Create a structured document",
+        "input_schema": DOCUMENT_SCHEMA,
+    }],
+    tool_choice={"type": "tool", "name": "create_document"},
+)
+```
+
 ### SYSTEM_PROMPT
 
 System prompt string to instruct LLMs on document format.
@@ -162,6 +218,9 @@ except SurfaceDocsError as e:
 ```bash
 # API key (alternative to passing in code)
 export SURFACEDOCS_API_KEY=sd_live_...
+
+# Override base URL (for testing)
+export SURFACEDOCS_BASE_URL=https://ingress.dev.surfacedocs.dev
 ```
 
 The SDK auto-detects environment from API key prefix:
@@ -197,8 +256,6 @@ print(f"Saved: {result.url}")
 
 ### Anthropic
 
-Using Claude's structured outputs with tool use:
-
 ```python
 from surfacedocs import SurfaceDocs, DOCUMENT_SCHEMA, SYSTEM_PROMPT
 import anthropic
@@ -226,31 +283,6 @@ result = docs.save(tool_use.input)
 print(f"Saved: {result.url}")
 ```
 
-### Google Gemini
-
-Using Gemini's structured output with JSON schema:
-
-```python
-from surfacedocs import SurfaceDocs, DOCUMENT_SCHEMA, SYSTEM_PROMPT
-import google.generativeai as genai
-
-genai.configure(api_key="...")
-docs = SurfaceDocs()
-
-model = genai.GenerativeModel(
-    model_name="gemini-2.0-flash",
-    system_instruction=SYSTEM_PROMPT,
-    generation_config=genai.GenerationConfig(
-        response_mime_type="application/json",
-        response_schema=DOCUMENT_SCHEMA,
-    ),
-)
-
-response = model.generate_content("Write documentation for user authentication")
-result = docs.save(response.text)
-print(f"Saved: {result.url}")
-```
-
 ### Manual Document
 
 ```python
@@ -273,3 +305,41 @@ result = docs.save_raw(
 ## License
 
 MIT
+```
+
+---
+
+## Docstrings
+
+Ensure all public APIs have docstrings:
+
+- `SurfaceDocs.__init__`
+- `SurfaceDocs.save`
+- `SurfaceDocs.save_raw`
+- `SaveResult` class
+- All exception classes
+- Module-level docstrings for `schema.py` and `prompt.py`
+
+---
+
+## Verification
+
+```bash
+# README renders correctly
+python -m readme_renderer README.md
+
+# Or just check it's valid markdown
+cat README.md
+```
+
+---
+
+## Definition of Done
+
+- [x] `README.md` with installation, quick start, API reference, examples
+- [x] OpenAI example in README
+- [x] Anthropic example in README
+- [x] Block types documented
+- [x] Error handling documented
+- [x] All public APIs have docstrings
+- [x] `LICENSE` file exists (MIT)
