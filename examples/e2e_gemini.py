@@ -8,10 +8,10 @@ Usage:
 """
 
 import os
-import json
 from google import genai
+from google.genai import types
 
-from surfacedocs import SurfaceDocs, DOCUMENT_SCHEMA, SYSTEM_PROMPT
+from surfacedocs import SurfaceDocs, GEMINI_DOCUMENT_SCHEMA, SYSTEM_PROMPT
 
 # Configuration
 SURFACEDOCS_API_KEY = "sd_live_JBycgl5WHhtzVyeB9jQf7172dKvq06FX"
@@ -27,47 +27,36 @@ def main():
 
     client = genai.Client(api_key=gemini_api_key)
 
-    # Build prompt for Gemini
-    prompt = f"""
-{SYSTEM_PROMPT}
-
-Now, create a document about "Python Best Practices for API Development".
+    # Prompt for document generation
+    prompt = """
+Create a document about "Python Best Practices for API Development".
 Include:
 - A heading
 - 2-3 paragraphs of content
 - A code example
 - A bullet list of key takeaways
-
-Respond with ONLY the JSON document, no other text.
 """
 
-    print("Generating document with Gemini...")
+    print("Generating document with Gemini (using structured output)...")
+
+    # Use native JSON schema - guarantees valid JSON output
     response = client.models.generate_content(
         model="gemini-3-pro-preview",
         contents=prompt,
+        config=types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+            response_mime_type="application/json",
+            response_schema=GEMINI_DOCUMENT_SCHEMA,
+        ),
     )
 
-    # Extract JSON from response
-    response_text = response.text.strip()
-
-    # Handle markdown code blocks if present
-    if response_text.startswith("```"):
-        # Remove ```json and ``` markers
-        lines = response_text.split("\n")
-        response_text = "\n".join(lines[1:-1])
-
-    print(f"Gemini response:\n{response_text[:500]}...")
-
-    # Parse and validate
-    try:
-        document = json.loads(response_text)
-    except json.JSONDecodeError as e:
-        print(f"Failed to parse JSON: {e}")
-        print(f"Raw response: {response_text}")
-        raise
+    # No JSON parsing needed - response.text is guaranteed valid JSON
+    document = response.parsed  # or json.loads(response.text)
 
     print(f"\nDocument title: {document.get('title')}")
     print(f"Block count: {len(document.get('blocks', []))}")
+    for i, block in enumerate(document.get('blocks', [])):
+        print(f"  Block {i+1}: {block.get('type')}")
 
     # Save to SurfaceDocs
     print("\nSaving to SurfaceDocs...")

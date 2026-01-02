@@ -74,3 +74,56 @@ DOCUMENT_SCHEMA: dict = {
     },
     "required": ["title", "blocks"],
 }
+
+# Gemini-compatible schema (no additionalProperties, explicit metadata fields)
+GEMINI_DOCUMENT_SCHEMA: dict = {
+    "type": "object",
+    "properties": {
+        "title": {
+            "type": "string",
+            "description": "Document title",
+        },
+        "blocks": {
+            "type": "array",
+            "description": "Content blocks that make up the document",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "heading",
+                            "paragraph",
+                            "code",
+                            "list",
+                            "quote",
+                            "table",
+                            "image",
+                            "divider",
+                        ],
+                        "description": "Block type",
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Block content (markdown for text, code for code blocks, etc.)",
+                    },
+                    "level": {
+                        "type": "integer",
+                        "description": "Heading level (1-6), only for heading blocks",
+                    },
+                    "language": {
+                        "type": "string",
+                        "description": "Programming language, only for code blocks",
+                    },
+                    "listType": {
+                        "type": "string",
+                        "enum": ["bullet", "ordered"],
+                        "description": "List type, only for list blocks",
+                    },
+                },
+                "required": ["type", "content"],
+            },
+        },
+    },
+    "required": ["title", "blocks"],
+}
