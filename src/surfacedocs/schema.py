@@ -75,6 +75,93 @@ DOCUMENT_SCHEMA: dict = {
     "required": ["title", "blocks"],
 }
 
+# OpenAI-compatible schema (strict mode requires additionalProperties: false and all properties required)
+OPENAI_DOCUMENT_SCHEMA: dict = {
+    "type": "object",
+    "properties": {
+        "title": {
+            "type": "string",
+            "description": "Document title",
+        },
+        "metadata": {
+            "type": "object",
+            "properties": {
+                "source": {
+                    "type": ["string", "null"],
+                    "description": "Identifier for the agent/system that created this document",
+                },
+                "tags": {
+                    "type": ["array", "null"],
+                    "items": {"type": "string"},
+                    "description": "Optional tags for categorization",
+                },
+            },
+            "required": ["source", "tags"],
+            "additionalProperties": False,
+        },
+        "blocks": {
+            "type": "array",
+            "description": "Content blocks that make up the document",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "heading",
+                            "paragraph",
+                            "code",
+                            "list",
+                            "quote",
+                            "table",
+                            "image",
+                            "divider",
+                        ],
+                        "description": "Block type",
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Block content (markdown for text, code for code blocks, etc.)",
+                    },
+                    "metadata": {
+                        "type": ["object", "null"],
+                        "description": "Block-specific metadata (level for headings, language for code, etc.)",
+                        "properties": {
+                            "level": {
+                                "type": ["integer", "null"],
+                                "description": "Heading level (1-6), only for heading blocks",
+                            },
+                            "language": {
+                                "type": ["string", "null"],
+                                "description": "Programming language, only for code blocks",
+                            },
+                            "listType": {
+                                "type": ["string", "null"],
+                                "enum": ["bullet", "ordered", None],
+                                "description": "List type, only for list blocks",
+                            },
+                            "url": {
+                                "type": ["string", "null"],
+                                "description": "Image URL, only for image blocks",
+                            },
+                            "alt": {
+                                "type": ["string", "null"],
+                                "description": "Image alt text, only for image blocks",
+                            },
+                        },
+                        "required": ["level", "language", "listType", "url", "alt"],
+                        "additionalProperties": False,
+                    },
+                },
+                "required": ["type", "content", "metadata"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["title", "metadata", "blocks"],
+    "additionalProperties": False,
+}
+
 # Gemini-compatible schema (no additionalProperties, explicit metadata fields)
 GEMINI_DOCUMENT_SCHEMA: dict = {
     "type": "object",
