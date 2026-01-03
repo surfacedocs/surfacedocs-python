@@ -18,8 +18,8 @@ response = client.models.generate_content(
 )
 
 docs = SurfaceDocs(
-    api_key="sd_live_JBycgl5WHhtzVyeB9jQf7172dKvq06FX",
-    base_url="https://ingress.dev.surfacedocs.dev",
+    api_key="sd_live_RrJPC6LqO0CqSqnGeNnm93RHlXa8x6iS",
+    base_url="https://ingress.surfacedocs.dev",
 )
-result = docs.save(response.text, folder_id="VZW8T4l44jOuVEZ4952w")
+result = docs.save(response.text, folder_id="xEQ5xO0wt0g4Oj5cm07X")
 print(result.url)

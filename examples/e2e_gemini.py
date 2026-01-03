@@ -14,9 +14,9 @@ from google.genai import types
 from surfacedocs import SurfaceDocs, GEMINI_DOCUMENT_SCHEMA, SYSTEM_PROMPT
 
 # Configuration
-SURFACEDOCS_API_KEY = "sd_live_JBycgl5WHhtzVyeB9jQf7172dKvq06FX"
-SURFACEDOCS_BASE_URL = "https://ingress.dev.surfacedocs.dev"
-SURFACEDOCS_FOLDER_ID = "VZW8T4l44jOuVEZ4952w"
+SURFACEDOCS_API_KEY = "sd_live_RrJPC6LqO0CqSqnGeNnm93RHlXa8x6iS"
+SURFACEDOCS_BASE_URL = "https://ingress.surfacedocs.dev"
+SURFACEDOCS_FOLDER_ID = "xEQ5xO0wt0g4Oj5cm07X"
 
 
 def main():
