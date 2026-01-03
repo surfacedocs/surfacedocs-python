@@ -190,10 +190,25 @@ For each example:
 
 ## Definition of Done
 
-- [ ] `quickstart_openai.py` created and working
-- [ ] `quickstart_anthropic.py` created and working
-- [ ] `quickstart_gemini.py` verified still working
-- [ ] All three save documents successfully
-- [ ] All three use native structured output (not prompt hacks)
-- [ ] Any schema compatibility issues documented
+- [x] `quickstart_openai.py` created and working
+- [x] `quickstart_anthropic.py` created and working
+- [x] `quickstart_gemini.py` verified still working
+- [x] All three save documents successfully
+- [x] All three use native structured output (not prompt hacks)
+- [x] Any schema compatibility issues documented (OpenAI requires `OPENAI_DOCUMENT_SCHEMA`)
 - [ ] README updated with all three examples (optional)
+
+## Completion Notes
+
+All three quickstart examples are working:
+
+- **OpenAI**: Uses `OPENAI_DOCUMENT_SCHEMA` (created new schema for strict mode compatibility)
+  - Output: https://dev.surfacedocs.dev/d/doc_Dxb7-2bgVCjP
+- **Anthropic**: Uses `DOCUMENT_SCHEMA` with tool use
+  - Output: https://dev.surfacedocs.dev/d/doc_L8KkwMe8lHJ4
+- **Gemini**: Uses `GEMINI_DOCUMENT_SCHEMA`
+  - Output: https://dev.surfacedocs.dev/d/doc_XF7kO3JiHgmP
+
+### Schema Compatibility
+
+OpenAI's strict mode requires `additionalProperties: false` and all properties listed in `required` arrays at every level. Created `OPENAI_DOCUMENT_SCHEMA` to meet these requirements.
