@@ -10,7 +10,8 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"
 authors = [
-    { name = "SurfaceDocs", email = "hello@surfacedocs.dev" }
+    { name = "SurfaceDocs", email = "hello@surfacedocs.dev" },
+    { name = "Sam Gallagher", email = "gallaghersam95@gmail.com" }
 ]
 keywords = ["llm", "documentation", "ai", "sdk"]
 classifiers = [
@@ -37,8 +38,7 @@ dev = [
 
 [project.urls]
 Homepage = "https://surfacedocs.dev"
-Documentation = "https://surfacedocs.dev/docs"
-Repository = "https://github.com/surfacedocs/surfacedocs-python"
+Documentation = "https://app.surfacedocs.dev/public/d/doc_VYMSDUFWvYBO"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/surfacedocs"]
