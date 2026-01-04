@@ -65,7 +65,7 @@ DOCUMENT_SCHEMA: dict = {
                     },
                     "metadata": {
                         "type": "object",
-                        "description": "Block-specific metadata (level for headings, language for code, etc.)",
+                        "description": "Block-specific metadata. For headings: level (1-6) is REQUIRED - use 1 for main sections, 2 for subsections, 3 for sub-subsections. For code: language for syntax highlighting. For lists: listType ('bullet' or 'ordered').",
                     },
                 },
                 "required": ["type", "content"],
@@ -125,15 +125,15 @@ OPENAI_DOCUMENT_SCHEMA: dict = {
                     },
                     "metadata": {
                         "type": ["object", "null"],
-                        "description": "Block-specific metadata (level for headings, language for code, etc.)",
+                        "description": "Block-specific metadata. For headings: level is REQUIRED. For code: language for syntax highlighting. For lists: listType.",
                         "properties": {
                             "level": {
                                 "type": ["integer", "null"],
-                                "description": "Heading level (1-6), only for heading blocks",
+                                "description": "REQUIRED for heading blocks. Use 1 for main sections, 2 for subsections, 3 for sub-subsections. Always use proper hierarchy (don't skip levels).",
                             },
                             "language": {
                                 "type": ["string", "null"],
-                                "description": "Programming language, only for code blocks",
+                                "description": "Programming language for syntax highlighting (e.g., 'python', 'javascript'). Only for code blocks.",
                             },
                             "listType": {
                                 "type": ["string", "null"],
@@ -194,18 +194,24 @@ GEMINI_DOCUMENT_SCHEMA: dict = {
                         "type": "string",
                         "description": "Block content (markdown for text, code for code blocks, etc.)",
                     },
-                    "level": {
-                        "type": "integer",
-                        "description": "Heading level (1-6), only for heading blocks",
-                    },
-                    "language": {
-                        "type": "string",
-                        "description": "Programming language, only for code blocks",
-                    },
-                    "listType": {
-                        "type": "string",
-                        "enum": ["bullet", "ordered"],
-                        "description": "List type, only for list blocks",
+                    "metadata": {
+                        "type": "object",
+                        "description": "Block-specific metadata",
+                        "properties": {
+                            "level": {
+                                "type": "integer",
+                                "description": "REQUIRED for heading blocks. Use 1 for main sections, 2 for subsections, 3 for sub-subsections. Always use proper hierarchy (don't skip levels).",
+                            },
+                            "language": {
+                                "type": "string",
+                                "description": "Programming language for syntax highlighting (e.g., 'python', 'javascript'). Only for code blocks.",
+                            },
+                            "listType": {
+                                "type": "string",
+                                "enum": ["bullet", "ordered"],
+                                "description": "List style. Only for list blocks.",
+                            },
+                        },
                     },
                 },
                 "required": ["type", "content"],

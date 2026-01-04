@@ -25,8 +25,11 @@ SYSTEM_PROMPT: str = """When asked to create documentation, respond with a JSON 
     "tags": ["optional", "tags"]
   },
   "blocks": [
-    {"type": "heading", "content": "Section Header", "metadata": {"level": 1}},
+    {"type": "heading", "content": "Main Section", "metadata": {"level": 1}},
     {"type": "paragraph", "content": "Body text with **bold** and *italic*."},
+    {"type": "heading", "content": "Subsection", "metadata": {"level": 2}},
+    {"type": "paragraph", "content": "More content under the subsection."},
+    {"type": "heading", "content": "Sub-subsection", "metadata": {"level": 3}},
     {"type": "code", "content": "print('hello')", "metadata": {"language": "python"}},
     {"type": "list", "content": "- Item 1\\n- Item 2", "metadata": {"listType": "bullet"}},
     {"type": "quote", "content": "A notable quote."},
@@ -36,9 +39,13 @@ SYSTEM_PROMPT: str = """When asked to create documentation, respond with a JSON 
 }
 
 Block types:
-- heading: Section header (metadata.level: 1-6)
+- heading: Section header. ALWAYS include metadata.level (1-6). Use proper hierarchy:
+  - Level 1: Main sections (e.g., "Getting Started", "API Reference")
+  - Level 2: Subsections within a main section
+  - Level 3: Sub-subsections for detailed breakdowns
+  - Never skip levels (don't go from 1 to 3 directly)
 - paragraph: Body text with inline markdown
-- code: Code block (metadata.language optional)
+- code: Code block (metadata.language recommended, e.g., "python", "javascript", "bash")
 - list: Markdown list (metadata.listType: "bullet" or "ordered")
 - quote: Block quote
 - table: Markdown table format
