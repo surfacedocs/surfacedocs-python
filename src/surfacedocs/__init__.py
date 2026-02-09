@@ -2,10 +2,11 @@
 
 from surfacedocs.schema import DOCUMENT_SCHEMA, GEMINI_DOCUMENT_SCHEMA, OPENAI_DOCUMENT_SCHEMA
 from surfacedocs.prompt import SYSTEM_PROMPT
-from surfacedocs.client import SaveResult, SurfaceDocs
+from surfacedocs.client import Block, Document, Folder, SaveResult, SurfaceDocs
 from surfacedocs.exceptions import (
     SurfaceDocsError,
     AuthenticationError,
+    DocumentNotFoundError,
     ValidationError,
     FolderNotFoundError,
 )
@@ -17,10 +18,14 @@ __all__ = [
     "GEMINI_DOCUMENT_SCHEMA",
     "OPENAI_DOCUMENT_SCHEMA",
     "SYSTEM_PROMPT",
+    "Block",
+    "Document",
+    "Folder",
     "SaveResult",
     "SurfaceDocs",
     "SurfaceDocsError",
     "AuthenticationError",
+    "DocumentNotFoundError",
     "ValidationError",
     "FolderNotFoundError",
     "__version__",

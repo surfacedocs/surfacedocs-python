@@ -23,3 +23,9 @@ class FolderNotFoundError(SurfaceDocsError):
     """Specified folder doesn't exist."""
 
     pass
+
+
+class DocumentNotFoundError(SurfaceDocsError):
+    """Specified document doesn't exist."""
+
+    pass

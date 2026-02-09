@@ -98,14 +98,100 @@ result = client.save_raw(
 )
 ```
 
+#### get_document(document_id)
+
+Retrieve a document by ID.
+
+```python
+doc = client.get_document("doc_abc123")
+print(doc.title)                # "API Documentation"
+print(doc.blocks[0].type)      # "heading"
+print(doc.blocks[0].content)   # "Authentication"
+```
+
+#### delete_document(document_id)
+
+Delete a document by ID.
+
+```python
+client.delete_document("doc_abc123")
+```
+
+#### create_folder(name, parent_id=None)
+
+Create a new folder.
+
+```python
+folder = client.create_folder("API Docs")
+print(folder.id)    # "fld_abc123"
+print(folder.name)  # "API Docs"
+
+# Create a subfolder
+subfolder = client.create_folder("v2", parent_id=folder.id)
+```
+
+#### list_folders(parent_id=None)
+
+List folders, optionally filtered by parent.
+
+```python
+# List all root folders
+folders = client.list_folders()
+
+# List subfolders of a specific folder
+subfolders = client.list_folders(parent_id="fld_abc123")
+```
+
 #### SaveResult
 
-Both methods return a `SaveResult`:
+Both `save()` and `save_raw()` return a `SaveResult`:
 
 ```python
 result.id        # "doc_abc123"
 result.url       # "https://app.surfacedocs.dev/d/doc_abc123"
 result.folder_id # "folder_xyz"
+```
+
+#### Document
+
+Returned by `get_document()`:
+
+```python
+doc.id            # "doc_abc123"
+doc.url           # "https://app.surfacedocs.dev/d/doc_abc123"
+doc.folder_id     # "folder_xyz"
+doc.title         # "My Document"
+doc.content_type  # "markdown"
+doc.visibility    # "private"
+doc.blocks        # list[Block]
+doc.metadata      # dict or None
+doc.created_at    # "2024-01-01T00:00:00Z"
+doc.updated_at    # "2024-01-02T00:00:00Z"
+```
+
+#### Block
+
+Each document contains a list of `Block` objects:
+
+```python
+block.id        # "blk_abc123"
+block.order     # 0
+block.type      # "heading", "paragraph", "code", etc.
+block.content   # "Hello world"
+block.metadata  # {"level": 1} or None
+```
+
+#### Folder
+
+Returned by `create_folder()` and `list_folders()`:
+
+```python
+folder.id         # "fld_abc123"
+folder.name       # "API Docs"
+folder.parent_id  # "fld_parent" or None
+folder.path       # "/API Docs"
+folder.depth      # 0
+folder.created_at # "2024-01-01T00:00:00Z"
 ```
 
 ### DOCUMENT_SCHEMA
@@ -145,7 +231,14 @@ Text content supports inline markdown: `**bold**`, `*italic*`, `` `code` ``, `[l
 ## Error Handling
 
 ```python
-from surfacedocs import SurfaceDocs, SurfaceDocsError, AuthenticationError, ValidationError
+from surfacedocs import (
+    SurfaceDocs,
+    SurfaceDocsError,
+    AuthenticationError,
+    DocumentNotFoundError,
+    FolderNotFoundError,
+    ValidationError,
+)
 
 try:
     result = client.save(content)
@@ -155,6 +248,16 @@ except ValidationError as e:
     print(f"Invalid document: {e}")
 except SurfaceDocsError as e:
     print(f"API error: {e}")
+
+try:
+    doc = client.get_document("doc_abc123")
+except DocumentNotFoundError:
+    print("Document does not exist")
+
+try:
+    folder = client.create_folder("Docs", parent_id="fld_nonexistent")
+except FolderNotFoundError:
+    print("Parent folder does not exist")
 ```
 
 ## Environment Variables
@@ -263,6 +366,54 @@ result = docs.save_raw(
         {"type": "paragraph", "content": "Next meeting: Monday 10am"},
     ],
     metadata={"source": "meeting-bot"},
+)
+```
+
+### Managing Documents
+
+```python
+from surfacedocs import SurfaceDocs, DocumentNotFoundError
+
+docs = SurfaceDocs()
+
+# Save a document
+result = docs.save_raw(
+    title="API Guide",
+    blocks=[{"type": "paragraph", "content": "Welcome to the API."}],
+)
+
+# Retrieve it
+doc = docs.get_document(result.id)
+print(doc.title)  # "API Guide"
+
+# Delete it
+docs.delete_document(result.id)
+```
+
+### Managing Folders
+
+```python
+from surfacedocs import SurfaceDocs
+
+docs = SurfaceDocs()
+
+# Create a folder hierarchy
+parent = docs.create_folder("Engineering")
+child = docs.create_folder("Backend", parent_id=parent.id)
+
+# List root folders
+for folder in docs.list_folders():
+    print(folder.name)
+
+# List subfolders
+for folder in docs.list_folders(parent_id=parent.id):
+    print(f"  {folder.name}")
+
+# Save a document to a folder
+result = docs.save_raw(
+    title="Architecture Overview",
+    blocks=[{"type": "paragraph", "content": "Our system uses..."}],
+    folder_id=child.id,
 )
 ```
 

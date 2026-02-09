@@ -8,6 +8,10 @@ import pytest
 import respx
 
 from surfacedocs import (
+    Block,
+    Document,
+    DocumentNotFoundError,
+    Folder,
     SaveResult,
     SurfaceDocs,
     AuthenticationError,
@@ -455,3 +459,264 @@ class TestClientDocstring:
         params = list(sig.parameters.keys())
         assert "api_key" in params
         assert "base_url" in params
+
+
+DEV_BASE = "https://ingress.dev.surfacedocs.dev"
+
+MOCK_DOCUMENT_RESPONSE = {
+    "id": "doc_123",
+    "url": "https://app.surfacedocs.dev/d/doc_123",
+    "folder_id": "folder_456",
+    "title": "Test Doc",
+    "content_type": "markdown",
+    "visibility": "private",
+    "blocks": [
+        {
+            "id": "blk_1",
+            "order": 0,
+            "type": "heading",
+            "content": "Introduction",
+            "metadata": {"level": 1},
+        },
+        {
+            "id": "blk_2",
+            "order": 1,
+            "type": "paragraph",
+            "content": "Hello world",
+        },
+    ],
+    "metadata": {"source": "test"},
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-02T00:00:00Z",
+}
+
+
+class TestGetDocument:
+    """Test the get_document() method."""
+
+    @pytest.fixture
+    def client(self):
+        c = SurfaceDocs(api_key="sd_test_abc123")
+        yield c
+        c.close()
+
+    @respx.mock
+    def test_get_document(self, client):
+        """get_document() should return a Document with all fields."""
+        respx.get(f"{DEV_BASE}/v1/documents/doc_123").mock(
+            return_value=httpx.Response(200, json=MOCK_DOCUMENT_RESPONSE)
+        )
+        doc = client.get_document("doc_123")
+        assert isinstance(doc, Document)
+        assert doc.id == "doc_123"
+        assert doc.title == "Test Doc"
+        assert doc.content_type == "markdown"
+        assert doc.visibility == "private"
+        assert doc.metadata == {"source": "test"}
+        assert doc.created_at == "2024-01-01T00:00:00Z"
+        assert doc.updated_at == "2024-01-02T00:00:00Z"
+        assert len(doc.blocks) == 2
+        assert isinstance(doc.blocks[0], Block)
+        assert doc.blocks[0].id == "blk_1"
+        assert doc.blocks[0].type == "heading"
+        assert doc.blocks[0].content == "Introduction"
+        assert doc.blocks[0].metadata == {"level": 1}
+        assert doc.blocks[1].metadata is None
+
+    @respx.mock
+    def test_get_document_not_found(self, client):
+        """get_document() should raise DocumentNotFoundError on 404."""
+        respx.get(f"{DEV_BASE}/v1/documents/doc_missing").mock(
+            return_value=httpx.Response(
+                404,
+                json={"error": {"code": "not_found", "message": "Document not found"}},
+            )
+        )
+        with pytest.raises(DocumentNotFoundError) as exc_info:
+            client.get_document("doc_missing")
+        assert "Document not found" in str(exc_info.value)
+
+
+class TestDeleteDocument:
+    """Test the delete_document() method."""
+
+    @pytest.fixture
+    def client(self):
+        c = SurfaceDocs(api_key="sd_test_abc123")
+        yield c
+        c.close()
+
+    @respx.mock
+    def test_delete_document(self, client):
+        """delete_document() should return None on 204."""
+        respx.delete(f"{DEV_BASE}/v1/documents/doc_123").mock(
+            return_value=httpx.Response(204)
+        )
+        result = client.delete_document("doc_123")
+        assert result is None
+
+    @respx.mock
+    def test_delete_document_not_found(self, client):
+        """delete_document() should raise DocumentNotFoundError on 404."""
+        respx.delete(f"{DEV_BASE}/v1/documents/doc_missing").mock(
+            return_value=httpx.Response(
+                404,
+                json={"error": {"code": "not_found", "message": "Document not found"}},
+            )
+        )
+        with pytest.raises(DocumentNotFoundError) as exc_info:
+            client.delete_document("doc_missing")
+        assert "Document not found" in str(exc_info.value)
+
+
+class TestCreateFolder:
+    """Test the create_folder() method."""
+
+    @pytest.fixture
+    def client(self):
+        c = SurfaceDocs(api_key="sd_test_abc123")
+        yield c
+        c.close()
+
+    @respx.mock
+    def test_create_folder(self, client):
+        """create_folder() should return a Folder."""
+        route = respx.post(f"{DEV_BASE}/v1/folders").mock(
+            return_value=httpx.Response(
+                201,
+                json={
+                    "id": "fld_abc",
+                    "name": "My Folder",
+                    "parent_id": None,
+                    "path": "/My Folder",
+                    "depth": 0,
+                    "created_at": "2024-01-01T00:00:00Z",
+                },
+            )
+        )
+        folder = client.create_folder("My Folder")
+        assert isinstance(folder, Folder)
+        assert folder.id == "fld_abc"
+        assert folder.name == "My Folder"
+        assert folder.parent_id is None
+        assert folder.path == "/My Folder"
+        assert folder.depth == 0
+
+        request = route.calls.last.request
+        body = json.loads(request.content)
+        assert body["name"] == "My Folder"
+        assert "parent_id" not in body
+
+    @respx.mock
+    def test_create_folder_with_parent(self, client):
+        """create_folder() should send parent_id in request body."""
+        route = respx.post(f"{DEV_BASE}/v1/folders").mock(
+            return_value=httpx.Response(
+                201,
+                json={
+                    "id": "fld_child",
+                    "name": "Sub Folder",
+                    "parent_id": "fld_parent",
+                    "path": "/Parent/Sub Folder",
+                    "depth": 1,
+                    "created_at": "2024-01-01T00:00:00Z",
+                },
+            )
+        )
+        folder = client.create_folder("Sub Folder", parent_id="fld_parent")
+        assert folder.parent_id == "fld_parent"
+        assert folder.depth == 1
+
+        request = route.calls.last.request
+        body = json.loads(request.content)
+        assert body["parent_id"] == "fld_parent"
+
+    @respx.mock
+    def test_create_folder_parent_not_found(self, client):
+        """create_folder() should raise FolderNotFoundError when parent doesn't exist."""
+        respx.post(f"{DEV_BASE}/v1/folders").mock(
+            return_value=httpx.Response(
+                404,
+                json={"error": {"code": "not_found", "message": "Folder not found"}},
+            )
+        )
+        with pytest.raises(FolderNotFoundError) as exc_info:
+            client.create_folder("Child", parent_id="fld_nonexistent")
+        assert "Folder not found" in str(exc_info.value)
+
+
+class TestListFolders:
+    """Test the list_folders() method."""
+
+    @pytest.fixture
+    def client(self):
+        c = SurfaceDocs(api_key="sd_test_abc123")
+        yield c
+        c.close()
+
+    @respx.mock
+    def test_list_folders(self, client):
+        """list_folders() should return a list of Folder objects."""
+        respx.get(f"{DEV_BASE}/v1/folders").mock(
+            return_value=httpx.Response(
+                200,
+                json=[
+                    {
+                        "id": "fld_1",
+                        "name": "Docs",
+                        "parent_id": None,
+                        "path": "/Docs",
+                        "depth": 0,
+                        "created_at": "2024-01-01T00:00:00Z",
+                    },
+                    {
+                        "id": "fld_2",
+                        "name": "Notes",
+                        "parent_id": None,
+                        "path": "/Notes",
+                        "depth": 0,
+                        "created_at": "2024-01-02T00:00:00Z",
+                    },
+                ],
+            )
+        )
+        folders = client.list_folders()
+        assert len(folders) == 2
+        assert all(isinstance(f, Folder) for f in folders)
+        assert folders[0].id == "fld_1"
+        assert folders[0].name == "Docs"
+        assert folders[1].id == "fld_2"
+
+    @respx.mock
+    def test_list_folders_with_parent_filter(self, client):
+        """list_folders() should send parent_id as query param."""
+        route = respx.get(f"{DEV_BASE}/v1/folders").mock(
+            return_value=httpx.Response(
+                200,
+                json=[
+                    {
+                        "id": "fld_child",
+                        "name": "Sub",
+                        "parent_id": "fld_parent",
+                        "path": "/Parent/Sub",
+                        "depth": 1,
+                        "created_at": "2024-01-01T00:00:00Z",
+                    },
+                ],
+            )
+        )
+        folders = client.list_folders(parent_id="fld_parent")
+        assert len(folders) == 1
+        assert folders[0].parent_id == "fld_parent"
+
+        request = route.calls.last.request
+        assert "parent_id=fld_parent" in str(request.url)
+
+    @respx.mock
+    def test_list_folders_empty(self, client):
+        """list_folders() should return empty list when no folders exist."""
+        respx.get(f"{DEV_BASE}/v1/folders").mock(
+            return_value=httpx.Response(200, json=[])
+        )
+        folders = client.list_folders()
+        assert folders == []

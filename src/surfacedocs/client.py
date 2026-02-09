@@ -11,6 +11,7 @@ import httpx
 
 from surfacedocs.exceptions import (
     AuthenticationError,
+    DocumentNotFoundError,
     FolderNotFoundError,
     SurfaceDocsError,
     ValidationError,
@@ -24,6 +25,45 @@ class SaveResult:
     id: str
     url: str
     folder_id: str
+
+
+@dataclass
+class Block:
+    """A content block within a document."""
+
+    id: str
+    order: int
+    type: str
+    content: str
+    metadata: dict | None = None
+
+
+@dataclass
+class Document:
+    """A SurfaceDocs document."""
+
+    id: str
+    url: str
+    folder_id: str
+    title: str
+    content_type: str
+    visibility: str
+    blocks: list[Block]
+    metadata: dict | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+@dataclass
+class Folder:
+    """A SurfaceDocs folder."""
+
+    id: str
+    name: str
+    parent_id: str | None = None
+    path: str = ""
+    depth: int = 0
+    created_at: str | None = None
 
 
 class SurfaceDocs:
@@ -143,17 +183,25 @@ class SurfaceDocs:
             payload["metadata"] = metadata
 
         response = self._client.post("/v1/documents", json=payload)
-        return self._handle_response(response)
+        data = self._handle_response(response)
+        return SaveResult(
+            id=data["id"],
+            url=data["url"],
+            folder_id=data["folder_id"],
+        )
 
-    def _handle_response(self, response: httpx.Response) -> SaveResult:
+    def _handle_response(
+        self,
+        response: httpx.Response,
+        not_found_error: type[SurfaceDocsError] = FolderNotFoundError,
+        not_found_message: str = "Folder not found",
+    ) -> Any:
         """Handle API response and map errors."""
-        if response.status_code == 201:
-            data = response.json()
-            return SaveResult(
-                id=data["id"],
-                url=data["url"],
-                folder_id=data["folder_id"],
-            )
+        if response.status_code in (200, 201):
+            return response.json()
+
+        if response.status_code == 204:
+            return None
 
         # Error handling
         try:
@@ -168,11 +216,126 @@ class SurfaceDocs:
         elif response.status_code == 403:
             raise AuthenticationError(f"Access denied: {detail}")
         elif response.status_code == 404:
-            raise FolderNotFoundError(f"Folder not found: {detail}")
+            raise not_found_error(f"{not_found_message}: {detail}")
         elif response.status_code == 422:
             raise ValidationError(f"Validation error: {detail}")
         else:
             raise SurfaceDocsError(f"API error ({response.status_code}): {detail}")
+
+    def get_document(self, document_id: str) -> Document:
+        """
+        Get a document by ID.
+
+        Args:
+            document_id: The document ID
+
+        Returns:
+            Document with all fields and blocks
+
+        Raises:
+            DocumentNotFoundError: If the document doesn't exist
+        """
+        response = self._client.get(f"/v1/documents/{document_id}")
+        data = self._handle_response(
+            response,
+            not_found_error=DocumentNotFoundError,
+            not_found_message="Document not found",
+        )
+        return Document(
+            id=data["id"],
+            url=data["url"],
+            folder_id=data["folder_id"],
+            title=data["title"],
+            content_type=data["content_type"],
+            visibility=data["visibility"],
+            blocks=[
+                Block(
+                    id=b["id"],
+                    order=b["order"],
+                    type=b["type"],
+                    content=b["content"],
+                    metadata=b.get("metadata"),
+                )
+                for b in data.get("blocks", [])
+            ],
+            metadata=data.get("metadata"),
+            created_at=data.get("created_at"),
+            updated_at=data.get("updated_at"),
+        )
+
+    def delete_document(self, document_id: str) -> None:
+        """
+        Delete a document by ID.
+
+        Args:
+            document_id: The document ID
+
+        Raises:
+            DocumentNotFoundError: If the document doesn't exist
+        """
+        response = self._client.delete(f"/v1/documents/{document_id}")
+        self._handle_response(
+            response,
+            not_found_error=DocumentNotFoundError,
+            not_found_message="Document not found",
+        )
+
+    def create_folder(self, name: str, parent_id: str | None = None) -> Folder:
+        """
+        Create a new folder.
+
+        Args:
+            name: Folder name
+            parent_id: Parent folder ID (defaults to root)
+
+        Returns:
+            Folder with ID and metadata
+
+        Raises:
+            FolderNotFoundError: If the parent folder doesn't exist
+        """
+        payload: dict[str, Any] = {"name": name}
+        if parent_id:
+            payload["parent_id"] = parent_id
+
+        response = self._client.post("/v1/folders", json=payload)
+        data = self._handle_response(response)
+        return Folder(
+            id=data["id"],
+            name=data["name"],
+            parent_id=data.get("parent_id"),
+            path=data.get("path", ""),
+            depth=data.get("depth", 0),
+            created_at=data.get("created_at"),
+        )
+
+    def list_folders(self, parent_id: str | None = None) -> list[Folder]:
+        """
+        List folders.
+
+        Args:
+            parent_id: Filter by parent folder ID
+
+        Returns:
+            List of Folder objects
+        """
+        params: dict[str, str] = {}
+        if parent_id:
+            params["parent_id"] = parent_id
+
+        response = self._client.get("/v1/folders", params=params)
+        data = self._handle_response(response)
+        return [
+            Folder(
+                id=f["id"],
+                name=f["name"],
+                parent_id=f.get("parent_id"),
+                path=f.get("path", ""),
+                depth=f.get("depth", 0),
+                created_at=f.get("created_at"),
+            )
+            for f in data
+        ]
 
     def close(self) -> None:
         """Close the HTTP client."""
