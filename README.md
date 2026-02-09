@@ -164,10 +164,6 @@ except SurfaceDocsError as e:
 export SURFACEDOCS_API_KEY=sd_live_...
 ```
 
-The SDK auto-detects environment from API key prefix:
-- `sd_live_*` → Production
-- `sd_test_*` → Development
-
 ## Examples
 
 ### OpenAI
