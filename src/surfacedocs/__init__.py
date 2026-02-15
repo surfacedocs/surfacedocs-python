@@ -2,7 +2,7 @@
 
 from surfacedocs.schema import DOCUMENT_SCHEMA, GEMINI_DOCUMENT_SCHEMA, OPENAI_DOCUMENT_SCHEMA
 from surfacedocs.prompt import SYSTEM_PROMPT
-from surfacedocs.client import Block, Document, Folder, SaveResult, SurfaceDocs, VersionResult, VersionSummary
+from surfacedocs.client import Block, Document, Folder, SaveResult, SearchResult, SurfaceDocs, VersionResult, VersionSummary
 from surfacedocs.exceptions import (
     SurfaceDocsError,
     AuthenticationError,
@@ -23,6 +23,7 @@ __all__ = [
     "Document",
     "Folder",
     "SaveResult",
+    "SearchResult",
     "SurfaceDocs",
     "VersionResult",
     "VersionSummary",

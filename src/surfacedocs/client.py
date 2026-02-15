@@ -89,6 +89,23 @@ class Folder:
     created_at: str | None = None
 
 
+@dataclass
+class SearchResult:
+    """A document search result."""
+
+    id: str
+    url: str
+    folder_id: str
+    title: str
+    content_type: str
+    block_count: int
+    visibility: str
+    metadata: dict | None = None
+    current_version: int | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
 class SurfaceDocs:
     """SurfaceDocs API client."""
 
@@ -542,6 +559,62 @@ class SurfaceDocs:
             version=data["version"],
             version_count=data["version_count"],
         )
+
+    def search_documents(
+        self,
+        query: str | None = None,
+        tag: str | None = None,
+        folder_id: str | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[SearchResult]:
+        """
+        Search documents by title prefix and/or tag.
+
+        Args:
+            query: Title prefix to search for (case-insensitive)
+            tag: Exact tag to match
+            folder_id: Optional folder ID to scope search
+            limit: Maximum results (default 20, max 50)
+            offset: Number of results to skip
+
+        Returns:
+            List of SearchResult objects
+
+        Raises:
+            ValidationError: If neither query nor tag is provided
+        """
+        if not query and not tag:
+            raise ValidationError("At least one of 'query' or 'tag' is required")
+
+        params: dict[str, str | int] = {}
+        if query:
+            params["q"] = query
+        if tag:
+            params["tag"] = tag
+        if folder_id:
+            params["folder_id"] = folder_id
+        params["limit"] = limit
+        params["offset"] = offset
+
+        response = self._client.get("/v1/documents/search", params=params)
+        data = self._handle_response(response)
+        return [
+            SearchResult(
+                id=r["id"],
+                url=r["url"],
+                folder_id=r["folder_id"],
+                title=r["title"],
+                content_type=r["content_type"],
+                block_count=r["block_count"],
+                visibility=r["visibility"],
+                metadata=r.get("metadata"),
+                current_version=r.get("current_version"),
+                created_at=r.get("created_at"),
+                updated_at=r.get("updated_at"),
+            )
+            for r in data.get("results", [])
+        ]
 
     def close(self) -> None:
         """Close the HTTP client."""

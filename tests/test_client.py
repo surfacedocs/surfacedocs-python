@@ -13,6 +13,7 @@ from surfacedocs import (
     DocumentNotFoundError,
     Folder,
     SaveResult,
+    SearchResult,
     SurfaceDocs,
     AuthenticationError,
     FolderNotFoundError,
@@ -968,3 +969,91 @@ class TestDocumentVersionFields:
         doc = client.get_document("doc_123")
         assert doc.current_version is None
         assert doc.version_count is None
+
+
+MOCK_SEARCH_RESPONSE = {
+    "results": [
+        {
+            "id": "doc_123",
+            "url": "https://app.surfacedocs.dev/d/doc_123",
+            "folder_id": "folder_456",
+            "title": "Test Doc",
+            "content_type": "markdown",
+            "block_count": 2,
+            "metadata": {"tags": ["python"]},
+            "visibility": "private",
+            "current_version": 1,
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-01T00:00:00Z",
+        }
+    ],
+    "count": 1,
+    "query": "test",
+    "tag": None,
+    "folder_id": None,
+}
+
+
+class TestSearchDocuments:
+    """Test search_documents()."""
+
+    @pytest.fixture
+    def client(self):
+        c = SurfaceDocs(api_key="sd_test_abc123")
+        yield c
+        c.close()
+
+    @respx.mock
+    def test_search_by_query(self, client):
+        """search_documents() should return SearchResult list for query."""
+        respx.get(f"{DEV_BASE}/v1/documents/search").mock(
+            return_value=httpx.Response(200, json=MOCK_SEARCH_RESPONSE)
+        )
+        results = client.search_documents(query="test")
+        assert len(results) == 1
+        assert isinstance(results[0], SearchResult)
+        assert results[0].id == "doc_123"
+        assert results[0].title == "Test Doc"
+        assert results[0].url == "https://app.surfacedocs.dev/d/doc_123"
+
+    @respx.mock
+    def test_search_by_tag(self, client):
+        """search_documents() should search by tag."""
+        tag_response = {**MOCK_SEARCH_RESPONSE, "query": None, "tag": "python"}
+        respx.get(f"{DEV_BASE}/v1/documents/search").mock(
+            return_value=httpx.Response(200, json=tag_response)
+        )
+        results = client.search_documents(tag="python")
+        assert len(results) == 1
+        assert results[0].metadata == {"tags": ["python"]}
+
+    @respx.mock
+    def test_search_with_folder_id(self, client):
+        """search_documents() should pass folder_id parameter."""
+        folder_response = {**MOCK_SEARCH_RESPONSE, "folder_id": "folder_456"}
+        respx.get(f"{DEV_BASE}/v1/documents/search").mock(
+            return_value=httpx.Response(200, json=folder_response)
+        )
+        results = client.search_documents(query="test", folder_id="folder_456")
+        assert len(results) == 1
+
+    @respx.mock
+    def test_search_empty_results(self, client):
+        """search_documents() should handle empty results."""
+        empty_response = {
+            "results": [],
+            "count": 0,
+            "query": "nonexistent",
+            "tag": None,
+            "folder_id": None,
+        }
+        respx.get(f"{DEV_BASE}/v1/documents/search").mock(
+            return_value=httpx.Response(200, json=empty_response)
+        )
+        results = client.search_documents(query="nonexistent")
+        assert results == []
+
+    def test_search_requires_query_or_tag(self, client):
+        """search_documents() should raise ValidationError without query or tag."""
+        with pytest.raises(ValidationError):
+            client.search_documents()

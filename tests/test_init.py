@@ -127,9 +127,9 @@ class TestAllExports:
             assert hasattr(surfacedocs, name), f"{name} not accessible"
 
     def test_all_has_expected_count(self):
-        """__all__ should have exactly 18 exports."""
+        """__all__ should have exactly 19 exports."""
         import surfacedocs
-        assert len(surfacedocs.__all__) == 18
+        assert len(surfacedocs.__all__) == 19
 
 
 class TestModuleDocstring:
