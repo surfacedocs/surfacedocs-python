@@ -29,3 +29,9 @@ class DocumentNotFoundError(SurfaceDocsError):
     """Specified document doesn't exist."""
 
     pass
+
+
+class VersionNotFoundError(SurfaceDocsError):
+    """Specified version doesn't exist."""
+
+    pass

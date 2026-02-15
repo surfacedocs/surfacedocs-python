@@ -15,6 +15,7 @@ from surfacedocs.exceptions import (
     FolderNotFoundError,
     SurfaceDocsError,
     ValidationError,
+    VersionNotFoundError,
 )
 
 
@@ -52,6 +53,28 @@ class Document:
     metadata: dict | None = None
     created_at: str | None = None
     updated_at: str | None = None
+    current_version: int | None = None
+    version_count: int | None = None
+
+
+@dataclass
+class VersionResult:
+    """Result from pushing or restoring a version."""
+
+    id: str
+    url: str
+    version: int
+    version_count: int
+
+
+@dataclass
+class VersionSummary:
+    """Summary of a document version."""
+
+    version: int
+    title: str
+    block_count: int
+    created_at: str | None = None
 
 
 @dataclass
@@ -261,6 +284,8 @@ class SurfaceDocs:
             metadata=data.get("metadata"),
             created_at=data.get("created_at"),
             updated_at=data.get("updated_at"),
+            current_version=data.get("current_version"),
+            version_count=data.get("version_count"),
         )
 
     def delete_document(self, document_id: str) -> None:
@@ -336,6 +361,187 @@ class SurfaceDocs:
             )
             for f in data
         ]
+
+    def push_version(
+        self,
+        document_id: str,
+        content: str | dict[str, Any],
+    ) -> VersionResult:
+        """
+        Push a new version from LLM output.
+
+        Args:
+            document_id: The document ID to version
+            content: JSON string or dict from LLM response
+
+        Returns:
+            VersionResult with document ID, URL, and version info
+        """
+        if isinstance(content, str):
+            try:
+                data = json.loads(content)
+            except json.JSONDecodeError as e:
+                raise ValidationError(f"Invalid JSON: {e}")
+        else:
+            data = content
+
+        title = data.get("title")
+        blocks = data.get("blocks")
+        metadata = data.get("metadata")
+
+        if not title:
+            raise ValidationError("Document must have a title")
+        if not blocks:
+            raise ValidationError("Document must have blocks")
+
+        return self.push_version_raw(
+            document_id=document_id,
+            title=title,
+            blocks=blocks,
+            metadata=metadata,
+        )
+
+    def push_version_raw(
+        self,
+        document_id: str,
+        title: str,
+        blocks: list[dict[str, Any]],
+        metadata: dict[str, Any] | None = None,
+    ) -> VersionResult:
+        """
+        Push a new version with explicit parameters.
+
+        Args:
+            document_id: The document ID to version
+            title: Document title
+            blocks: List of block dicts
+            metadata: Optional metadata dict
+
+        Returns:
+            VersionResult with document ID, URL, and version info
+        """
+        payload: dict[str, Any] = {
+            "title": title,
+            "blocks": blocks,
+            "content_type": "markdown",
+        }
+        if metadata:
+            payload["metadata"] = metadata
+
+        response = self._client.post(
+            f"/v1/documents/{document_id}/versions", json=payload
+        )
+        data = self._handle_response(
+            response,
+            not_found_error=DocumentNotFoundError,
+            not_found_message="Document not found",
+        )
+        return VersionResult(
+            id=data["id"],
+            url=data["url"],
+            version=data["version"],
+            version_count=data["version_count"],
+        )
+
+    def list_versions(self, document_id: str) -> list[VersionSummary]:
+        """
+        List all versions of a document.
+
+        Args:
+            document_id: The document ID
+
+        Returns:
+            List of VersionSummary objects
+        """
+        response = self._client.get(
+            f"/v1/documents/{document_id}/versions"
+        )
+        data = self._handle_response(
+            response,
+            not_found_error=DocumentNotFoundError,
+            not_found_message="Document not found",
+        )
+        return [
+            VersionSummary(
+                version=v["version"],
+                title=v["title"],
+                block_count=v["block_count"],
+                created_at=v.get("created_at"),
+            )
+            for v in data.get("versions", [])
+        ]
+
+    def get_version(self, document_id: str, version: int) -> Document:
+        """
+        Get a specific version of a document with its blocks.
+
+        Args:
+            document_id: The document ID
+            version: The version number
+
+        Returns:
+            Document with the version's blocks
+
+        Raises:
+            VersionNotFoundError: If the version doesn't exist
+        """
+        response = self._client.get(
+            f"/v1/documents/{document_id}/versions/{version}"
+        )
+        data = self._handle_response(
+            response,
+            not_found_error=VersionNotFoundError,
+            not_found_message="Version not found",
+        )
+        return Document(
+            id=document_id,
+            url="",
+            folder_id="",
+            title=data["title"],
+            content_type=data.get("content_type", "markdown"),
+            visibility="",
+            blocks=[
+                Block(
+                    id=b["id"],
+                    order=b["order"],
+                    type=b["type"],
+                    content=b["content"],
+                    metadata=b.get("metadata"),
+                )
+                for b in data.get("blocks", [])
+            ],
+            metadata=data.get("metadata"),
+            created_at=data.get("created_at"),
+        )
+
+    def restore_version(self, document_id: str, version: int) -> VersionResult:
+        """
+        Restore an old version as the new latest.
+
+        Args:
+            document_id: The document ID
+            version: The version number to restore
+
+        Returns:
+            VersionResult with the new version info
+
+        Raises:
+            VersionNotFoundError: If the version doesn't exist
+        """
+        response = self._client.post(
+            f"/v1/documents/{document_id}/versions/{version}/restore"
+        )
+        data = self._handle_response(
+            response,
+            not_found_error=VersionNotFoundError,
+            not_found_message="Version not found",
+        )
+        return VersionResult(
+            id=data["id"],
+            url=data["url"],
+            version=data["version"],
+            version_count=data["version_count"],
+        )
 
     def close(self) -> None:
         """Close the HTTP client."""

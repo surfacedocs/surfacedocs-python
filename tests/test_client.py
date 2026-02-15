@@ -720,3 +720,251 @@ class TestListFolders:
         )
         folders = client.list_folders()
         assert folders == []
+
+
+# --- Version Tests ---
+
+from surfacedocs import VersionResult, VersionSummary, VersionNotFoundError
+
+
+MOCK_VERSION_RESPONSE = {
+    "id": "doc_123",
+    "url": "https://app.surfacedocs.dev/d/doc_123",
+    "version": 2,
+    "version_count": 2,
+    "title": "Updated Doc",
+    "block_count": 1,
+    "created_at": "2024-01-02T00:00:00Z",
+}
+
+MOCK_VERSION_LIST_RESPONSE = {
+    "versions": [
+        {"version": 2, "title": "V2", "block_count": 1, "created_at": "2024-01-02T00:00:00Z"},
+        {"version": 1, "title": "V1", "block_count": 1, "created_at": "2024-01-01T00:00:00Z"},
+    ],
+    "current_version": 3,
+}
+
+MOCK_VERSION_DETAIL_RESPONSE = {
+    "version": 1,
+    "title": "V1",
+    "metadata": None,
+    "blocks": [
+        {"id": "blk_1", "order": 0, "type": "paragraph", "content": "Old content"},
+    ],
+    "created_at": "2024-01-01T00:00:00Z",
+}
+
+
+class TestPushVersion:
+    """Test push_version() and push_version_raw()."""
+
+    @pytest.fixture
+    def client(self):
+        c = SurfaceDocs(api_key="sd_test_abc123")
+        yield c
+        c.close()
+
+    @respx.mock
+    def test_push_version_raw(self, client):
+        """push_version_raw() should push a new version."""
+        route = respx.post(f"{DEV_BASE}/v1/documents/doc_123/versions").mock(
+            return_value=httpx.Response(201, json=MOCK_VERSION_RESPONSE)
+        )
+        result = client.push_version_raw(
+            document_id="doc_123",
+            title="Updated Doc",
+            blocks=[{"type": "paragraph", "content": "New content"}],
+        )
+        assert isinstance(result, VersionResult)
+        assert result.id == "doc_123"
+        assert result.version == 2
+        assert result.version_count == 2
+
+        request = route.calls.last.request
+        body = json.loads(request.content)
+        assert body["title"] == "Updated Doc"
+        assert body["content_type"] == "markdown"
+
+    @respx.mock
+    def test_push_version_with_dict(self, client):
+        """push_version() should accept dict content."""
+        respx.post(f"{DEV_BASE}/v1/documents/doc_123/versions").mock(
+            return_value=httpx.Response(201, json=MOCK_VERSION_RESPONSE)
+        )
+        result = client.push_version(
+            "doc_123",
+            {"title": "Updated Doc", "blocks": [{"type": "paragraph", "content": "New"}]},
+        )
+        assert result.version == 2
+
+    @respx.mock
+    def test_push_version_with_json_string(self, client):
+        """push_version() should accept JSON string content."""
+        respx.post(f"{DEV_BASE}/v1/documents/doc_123/versions").mock(
+            return_value=httpx.Response(201, json=MOCK_VERSION_RESPONSE)
+        )
+        content = json.dumps({
+            "title": "Updated Doc",
+            "blocks": [{"type": "paragraph", "content": "New"}],
+        })
+        result = client.push_version("doc_123", content)
+        assert result.version == 2
+
+    def test_push_version_invalid_json(self, client):
+        """push_version() should raise on invalid JSON."""
+        with pytest.raises(ValidationError):
+            client.push_version("doc_123", "not json")
+
+    def test_push_version_missing_title(self, client):
+        """push_version() should raise when title is missing."""
+        with pytest.raises(ValidationError):
+            client.push_version("doc_123", {"blocks": [{"type": "paragraph", "content": "x"}]})
+
+    @respx.mock
+    def test_push_version_not_found(self, client):
+        """push_version_raw() should raise on 404."""
+        respx.post(f"{DEV_BASE}/v1/documents/doc_missing/versions").mock(
+            return_value=httpx.Response(
+                404,
+                json={"error": {"code": "not_found", "message": "Document not found"}},
+            )
+        )
+        with pytest.raises(DocumentNotFoundError):
+            client.push_version_raw("doc_missing", "T", [{"type": "paragraph", "content": "x"}])
+
+
+class TestListVersions:
+    """Test list_versions()."""
+
+    @pytest.fixture
+    def client(self):
+        c = SurfaceDocs(api_key="sd_test_abc123")
+        yield c
+        c.close()
+
+    @respx.mock
+    def test_list_versions(self, client):
+        """list_versions() should return a list of VersionSummary."""
+        respx.get(f"{DEV_BASE}/v1/documents/doc_123/versions").mock(
+            return_value=httpx.Response(200, json=MOCK_VERSION_LIST_RESPONSE)
+        )
+        versions = client.list_versions("doc_123")
+        assert len(versions) == 2
+        assert all(isinstance(v, VersionSummary) for v in versions)
+        assert versions[0].version == 2
+        assert versions[1].version == 1
+
+    @respx.mock
+    def test_list_versions_not_found(self, client):
+        """list_versions() should raise on 404."""
+        respx.get(f"{DEV_BASE}/v1/documents/doc_missing/versions").mock(
+            return_value=httpx.Response(
+                404,
+                json={"error": {"code": "not_found", "message": "Document not found"}},
+            )
+        )
+        with pytest.raises(DocumentNotFoundError):
+            client.list_versions("doc_missing")
+
+
+class TestGetVersion:
+    """Test get_version()."""
+
+    @pytest.fixture
+    def client(self):
+        c = SurfaceDocs(api_key="sd_test_abc123")
+        yield c
+        c.close()
+
+    @respx.mock
+    def test_get_version(self, client):
+        """get_version() should return a Document with version blocks."""
+        respx.get(f"{DEV_BASE}/v1/documents/doc_123/versions/1").mock(
+            return_value=httpx.Response(200, json=MOCK_VERSION_DETAIL_RESPONSE)
+        )
+        doc = client.get_version("doc_123", 1)
+        assert isinstance(doc, Document)
+        assert doc.title == "V1"
+        assert len(doc.blocks) == 1
+        assert doc.blocks[0].content == "Old content"
+
+    @respx.mock
+    def test_get_version_not_found(self, client):
+        """get_version() should raise VersionNotFoundError on 404."""
+        respx.get(f"{DEV_BASE}/v1/documents/doc_123/versions/99").mock(
+            return_value=httpx.Response(
+                404,
+                json={"error": {"code": "not_found", "message": "Version not found"}},
+            )
+        )
+        with pytest.raises(VersionNotFoundError):
+            client.get_version("doc_123", 99)
+
+
+class TestRestoreVersion:
+    """Test restore_version()."""
+
+    @pytest.fixture
+    def client(self):
+        c = SurfaceDocs(api_key="sd_test_abc123")
+        yield c
+        c.close()
+
+    @respx.mock
+    def test_restore_version(self, client):
+        """restore_version() should return VersionResult."""
+        restore_response = {**MOCK_VERSION_RESPONSE, "version": 3, "version_count": 3}
+        respx.post(f"{DEV_BASE}/v1/documents/doc_123/versions/1/restore").mock(
+            return_value=httpx.Response(200, json=restore_response)
+        )
+        result = client.restore_version("doc_123", 1)
+        assert isinstance(result, VersionResult)
+        assert result.version == 3
+
+    @respx.mock
+    def test_restore_version_not_found(self, client):
+        """restore_version() should raise VersionNotFoundError on 404."""
+        respx.post(f"{DEV_BASE}/v1/documents/doc_123/versions/99/restore").mock(
+            return_value=httpx.Response(
+                404,
+                json={"error": {"code": "not_found", "message": "Version not found"}},
+            )
+        )
+        with pytest.raises(VersionNotFoundError):
+            client.restore_version("doc_123", 99)
+
+
+class TestDocumentVersionFields:
+    """Test that Document includes version fields."""
+
+    @pytest.fixture
+    def client(self):
+        c = SurfaceDocs(api_key="sd_test_abc123")
+        yield c
+        c.close()
+
+    @respx.mock
+    def test_get_document_with_version_fields(self, client):
+        """get_document() should parse current_version and version_count."""
+        response_data = {
+            **MOCK_DOCUMENT_RESPONSE,
+            "current_version": 3,
+            "version_count": 3,
+        }
+        respx.get(f"{DEV_BASE}/v1/documents/doc_123").mock(
+            return_value=httpx.Response(200, json=response_data)
+        )
+        doc = client.get_document("doc_123")
+        assert doc.current_version == 3
+        assert doc.version_count == 3
+
+    @respx.mock
+    def test_get_document_without_version_fields(self, client):
+        """get_document() should handle missing version fields (legacy docs)."""
+        respx.get(f"{DEV_BASE}/v1/documents/doc_123").mock(
+            return_value=httpx.Response(200, json=MOCK_DOCUMENT_RESPONSE)
+        )
+        doc = client.get_document("doc_123")
+        assert doc.current_version is None
+        assert doc.version_count is None
