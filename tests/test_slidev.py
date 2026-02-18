@@ -8,7 +8,6 @@ import respx
 
 from surfacedocs import SurfaceDocs
 
-
 DEV_BASE = "https://ingress.dev.surfacedocs.dev"
 
 MOCK_SAVE_RESPONSE = {

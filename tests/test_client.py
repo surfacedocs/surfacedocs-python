@@ -8,15 +8,15 @@ import pytest
 import respx
 
 from surfacedocs import (
+    AuthenticationError,
     Block,
     Document,
     DocumentNotFoundError,
     Folder,
+    FolderNotFoundError,
     SaveResult,
     SearchResult,
     SurfaceDocs,
-    AuthenticationError,
-    FolderNotFoundError,
     SurfaceDocsError,
     ValidationError,
 )
@@ -725,8 +725,7 @@ class TestListFolders:
 
 # --- Version Tests ---
 
-from surfacedocs import VersionResult, VersionSummary, VersionNotFoundError
-
+from surfacedocs import VersionNotFoundError, VersionResult, VersionSummary
 
 MOCK_VERSION_RESPONSE = {
     "id": "doc_123",

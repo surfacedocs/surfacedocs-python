@@ -1,6 +1,5 @@
 """Tests for SYSTEM_PROMPT."""
 
-import pytest
 
 from surfacedocs import SYSTEM_PROMPT
 from surfacedocs.prompt import SYSTEM_PROMPT as PROMPT_DIRECT

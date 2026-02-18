@@ -3,16 +3,22 @@
 import pytest
 
 from surfacedocs import (
-    SurfaceDocsError,
     AuthenticationError,
-    ValidationError,
     FolderNotFoundError,
+    SurfaceDocsError,
+    ValidationError,
+)
+from surfacedocs.exceptions import (
+    AuthenticationError as DirectAuthenticationError,
+)
+from surfacedocs.exceptions import (
+    FolderNotFoundError as DirectFolderNotFoundError,
 )
 from surfacedocs.exceptions import (
     SurfaceDocsError as DirectSurfaceDocsError,
-    AuthenticationError as DirectAuthenticationError,
+)
+from surfacedocs.exceptions import (
     ValidationError as DirectValidationError,
-    FolderNotFoundError as DirectFolderNotFoundError,
 )
 
 

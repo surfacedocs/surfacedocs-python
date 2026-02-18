@@ -1,6 +1,5 @@
 """Tests for package initialization and exports."""
 
-import pytest
 
 
 class TestPackageImports:
