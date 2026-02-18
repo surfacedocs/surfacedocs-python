@@ -192,12 +192,70 @@ class SurfaceDocs:
             metadata=metadata,
         )
 
+    @staticmethod
+    def detect_document_type(content: str) -> str:
+        """
+        Detect if content is a slidev deck or regular markdown.
+
+        Looks for slidev indicators: frontmatter with slidev-specific keys
+        (theme, class, layout, background, transition, etc.) and multiple
+        slide separators (---).
+
+        Args:
+            content: Raw text content to analyze.
+
+        Returns:
+            "slidev" if content looks like a slidev deck, "markdown" otherwise.
+        """
+        lines = content.strip().split("\n")
+        if not lines:
+            return "markdown"
+
+        # Check for frontmatter with slidev-specific keys
+        if lines[0].strip() == "---":
+            slidev_keys = {
+                "theme",
+                "class",
+                "layout",
+                "background",
+                "transition",
+                "mdc",
+                "fonts",
+                "drawings",
+                "highlighter",
+                "lineNumbers",
+                "info",
+                "download",
+                "exportFilename",
+                "monaco",
+                "remoteAssets",
+            }
+            in_frontmatter = True
+            has_slidev_frontmatter = False
+            for line in lines[1:]:
+                if line.strip() == "---":
+                    in_frontmatter = False
+                    break
+                key = line.split(":")[0].strip() if ":" in line else ""
+                if key in slidev_keys:
+                    has_slidev_frontmatter = True
+            if has_slidev_frontmatter and not in_frontmatter:
+                return "slidev"
+
+        # Count standalone --- lines (slide separators)
+        separator_count = sum(1 for line in lines if line.strip() == "---")
+        if separator_count >= 3:
+            return "slidev"
+
+        return "markdown"
+
     def save_raw(
         self,
         title: str,
         blocks: list[dict[str, Any]],
         folder_id: str | None = None,
         metadata: dict[str, Any] | None = None,
+        content_type: str = "markdown",
     ) -> SaveResult:
         """
         Save a document with explicit parameters.
@@ -207,6 +265,8 @@ class SurfaceDocs:
             blocks: List of block dicts
             folder_id: Target folder (defaults to user's root folder)
             metadata: Optional metadata dict
+            content_type: Document content type (default: "markdown").
+                          Use "slidev" for Slidev presentation decks.
 
         Returns:
             SaveResult with document ID and URL
@@ -214,7 +274,7 @@ class SurfaceDocs:
         payload: dict[str, Any] = {
             "title": title,
             "blocks": blocks,
-            "content_type": "markdown",
+            "content_type": content_type,
         }
 
         if folder_id:
@@ -418,12 +478,44 @@ class SurfaceDocs:
             metadata=metadata,
         )
 
+    def save_slidev(
+        self,
+        title: str,
+        slidev_markdown: str,
+        folder_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> SaveResult:
+        """
+        Save a Slidev presentation deck.
+
+        Packages the raw slidev markdown as a single ``slide_deck`` block
+        with ``content_type="slidev"``.
+
+        Args:
+            title: Document title
+            slidev_markdown: Raw slidev markdown (with --- separators)
+            folder_id: Target folder (defaults to user's root folder)
+            metadata: Optional metadata dict
+
+        Returns:
+            SaveResult with document ID and URL
+        """
+        blocks = [{"type": "slide_deck", "content": slidev_markdown}]
+        return self.save_raw(
+            title=title,
+            blocks=blocks,
+            folder_id=folder_id,
+            metadata=metadata,
+            content_type="slidev",
+        )
+
     def push_version_raw(
         self,
         document_id: str,
         title: str,
         blocks: list[dict[str, Any]],
         metadata: dict[str, Any] | None = None,
+        content_type: str = "markdown",
     ) -> VersionResult:
         """
         Push a new version with explicit parameters.
@@ -433,6 +525,8 @@ class SurfaceDocs:
             title: Document title
             blocks: List of block dicts
             metadata: Optional metadata dict
+            content_type: Document content type (default: "markdown").
+                          Use "slidev" for Slidev presentation decks.
 
         Returns:
             VersionResult with document ID, URL, and version info
@@ -440,7 +534,7 @@ class SurfaceDocs:
         payload: dict[str, Any] = {
             "title": title,
             "blocks": blocks,
-            "content_type": "markdown",
+            "content_type": content_type,
         }
         if metadata:
             payload["metadata"] = metadata
